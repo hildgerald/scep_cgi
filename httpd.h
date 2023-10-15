@@ -758,10 +758,11 @@ typedef struct _HTTPParameters
 } HTTPParameters;
 
 struct context {
-    const char *challenge_password;
-    long allow_renew_days;
-    long validity_days;
-    const char *depot;
+	const char *challenge_password;	// challenge password to compare
+    long allow_renew_days;			// allow to renew days
+    long validity_days;				// Validity of the certificate in days
+    long offset_days;				// offset to apply to the current date (in days)
+    const char *depot;				// not used
     struct scep *scep;
 };
 

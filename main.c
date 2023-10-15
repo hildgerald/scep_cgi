@@ -1063,6 +1063,8 @@ unsigned int PKIOperation_PKCSReq(
 		}
 	}
 #endif
+	now += ctx->offset_days;
+	LOGI("Offset apply to the current date =%ld; date %ld",ctx->offset_days, now);
 	LOGI("scep: PKCSReq authorized by valid certificate");
 	rep = scep_CertRep_new(scep, req, now, ctx->validity_days);
 	if (!rep) {
@@ -1552,6 +1554,8 @@ int main(void)
 //        return help(argv[0]);
 //    }
 
+    LOGD("*******************************************************************");
+    LOGD("Start scep-cgi");
     // get the application path to decide where are the PKI...
     // The url is by exemple : http://website_domain/scep/pkitest/
     // the alias /scep execute this software

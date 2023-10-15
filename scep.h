@@ -55,6 +55,9 @@ struct scep_configure { /* memset() to 0 for all default */
 
     /* Copy SAN from CSR to issued certificate */
     int set_subject_alternative_name;
+
+    /* URI of crl distribution point like http://toto.com/crl.pem */
+    char crl_distribution_point[512];
 };
 
 #define SCEP_RSA_MIN_BITS 2048

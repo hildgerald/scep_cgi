@@ -12,6 +12,7 @@
 #include "logger.h"
 
 char challenge[512] = {0};
+char crl_dist_point[512] = {0};
 
 /**
  * @fn void conf_init(struct scep_configure*, struct context*)
@@ -26,10 +27,12 @@ void conf_init(struct scep_configure * configure, struct context *ctx)
 	ctx->allow_renew_days = 0;
 	ctx->depot = NULL;
 	ctx->validity_days = 10000;
+	ctx->offset_days = 0;
 
 	configure->set_subject_alternative_name = 1;
 	configure->tolerate_exposed_challenge_password = 0;
 	configure->no_validate_transaction_id = 1;
+	memset(configure->crl_distribution_point,0, sizeof(configure->crl_distribution_point));
 }
 /**
  * @fn int32_t conf_read_file(char*, struct scep_configure*, struct context*)
@@ -86,7 +89,11 @@ int32_t conf_read_file(char * conf_filename, struct scep_configure * configure, 
 				}
 
 				// We have all the informations that we need so we manage the control
-				if (strcmp(ParameterName,"challenge_password") == 0)
+				if (strcmp(ParameterName,"crl_dist_point") == 0)
+				{
+					strncpy(configure->crl_distribution_point, ParameterValue, sizeof(configure->crl_distribution_point)-1);
+				}
+				else if (strcmp(ParameterName,"challenge_password") == 0)
 				{
 					ctx->challenge_password = challenge;
 					strncpy(challenge, ParameterValue, sizeof(challenge)-1);
@@ -98,6 +105,10 @@ int32_t conf_read_file(char * conf_filename, struct scep_configure * configure, 
 				else if (strcmp(ParameterName,"validity_days") == 0)
 				{
 					ctx->validity_days = atol(ParameterValue);
+				}
+				else if (strcmp(ParameterName,"offset_days") == 0)
+				{
+					ctx->offset_days = atol(ParameterValue)*24*60*60;
 				}
 				else if (strcmp(ParameterName,"set_san") == 0)
 				{
@@ -156,9 +167,14 @@ int32_t conf_save_file(char * conf_filename, struct scep_configure * configure, 
 		if (ctx->challenge_password) fprintf(fp,"challenge_password=%s;\n",ctx->challenge_password);
 		fprintf(fp,"allow_renew_days=%ld;\n",ctx->allow_renew_days);
 		fprintf(fp,"validity_days=%ld;\n",ctx->validity_days);
+		fprintf(fp,"offset_days=%ld;\n",ctx->offset_days);
 		fprintf(fp,"set_san=%d;\n",configure->set_subject_alternative_name);
 		fprintf(fp,"tolerate_exposed_challenge_password=%d;\n",configure->tolerate_exposed_challenge_password);
 		fprintf(fp,"no_validate_transaction_id=%d;\n",configure->no_validate_transaction_id);
+		if (strlen(configure->crl_distribution_point) > 0)
+		{
+			fprintf(fp,"crl_dist_point=%s;\n",configure->crl_distribution_point);
+		}
 		fclose(fp);
 	}
 	else return -1;

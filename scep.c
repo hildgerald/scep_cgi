@@ -1887,138 +1887,124 @@ static int scep_add_ext(
 }
 
 /**
- * @fn int scep_add_ext_crl_distribution_point(X509*, X509*, int, const char*)
- * @brief
+ * @fn int scep_add_ext_crl_distribution_point(X509*, X509*, const char*)
+ * @brief Add a crl distribution point
  *
- * @param issuer
- * @param subject
- * @param nid
- * @param value
- * @return
+ * @param issuer : not used
+ * @param subject : certificate where to add the crl distribution point
+ * @param value char* : URI of the crl distribution point write http://toto.com/crls.pem
+ * @return int : -1 -> error; 0 -> no crl distribution point added; 1 -> a crl point distribution added
  */
 int scep_add_ext_crl_distribution_point(X509 *issuer,
         X509 *subject,
         const char *value)
 {
-	return 0;
+	(void) issuer;
 
-	//TODO trouver comment écrire le CRL distribution point à l'intérieur du certificat
-	char *uri = "http://toto.com/crls.pem\0";
-	DIST_POINT *crldp = NULL;
-	CRL_DIST_POINTS *crldp_stack = NULL;
+	char uri[1024] = {0};
 
-	GENERAL_NAMES *gens = NULL;
-	GENERAL_NAME *gen = NULL;
+	//char *uri = "URI:http://toto.com/crls.pem\0";
+	GENERAL_NAMES *gNames = NULL;
+	GENERAL_NAME *gNameURI = NULL;
 	ASN1_IA5STRING *ia5 = NULL;
-	ASN1_STRING *asnstr = NULL;
+	DIST_POINT *distPoint = NULL;
+	STACK_OF(DIST_POINT) *distPoints = NULL;
+	DIST_POINT_NAME *dpName = NULL;
 
+	X509_EXTENSION *extension = NULL;
 
 	LOGD("Enter in scep_add_ext_crl_distribution_point");
-	gens = sk_GENERAL_NAME_new_null();
-	if (gens == NULL)
+
+	strncpy(uri, value, sizeof(uri)-1);
+	if ((strlen(value) > sizeof(uri)-5)
+		|| (strlen(value) <= 8))
 	{
-		LOGE("Error when creating gens");
+		LOGD("No crl distribution point so leave the function");
+		return(0);
+	}
+	snprintf(uri, sizeof(uri)-1,"URI:%s",value);
+
+	LOGD("Add new extention with NID=%d and value=%s", NID_crl_distribution_points, uri);
+	LOGD("Create distPoints");
+	distPoints = sk_DIST_POINT_new_null();
+	if (!distPoints)
+	{
+		LOGE("Impossible to create a new distPoints %s",ERR_reason_error_string(ERR_peek_last_error()));
 		return -1;
 	}
 
-	//TODO, extraire les URLs de values...
-	gen = GENERAL_NAME_new();
-	if (gen == NULL)
+	LOGD("Create distPoint");
+	distPoint = DIST_POINT_new();
+	if (!distPoint)
 	{
-		GENERAL_NAMES_free(gens);
-		LOGE("Error when creating gen");
+		LOGE("Impossible to create a new distPoint %s",ERR_reason_error_string(ERR_peek_last_error()));
 		return -1;
 	}
 
-	asnstr = ASN1_STRING_new();
-	if (asnstr == NULL)
+	LOGD("Create dpName");
+	dpName = DIST_POINT_NAME_new();
+	if (!dpName)
 	{
-		GENERAL_NAME_free(gen);
-		GENERAL_NAMES_free(gens);
-		LOGE("Error when creating asnstr");
+		LOGE("Impossible to create a new dpName %s",ERR_reason_error_string(ERR_peek_last_error()));
 		return -1;
 	}
 
-	LOGD("set asnstr with :%s",uri);
-	if (!ASN1_STRING_set(asnstr, uri, strlen(uri)))
+	LOGD("Create gNames");
+	gNames = GENERAL_NAMES_new();
+	if (!gNames)
 	{
-		LOGE("Error when setting asnstr");
+		LOGE("Impossible to create a new gNames %s",ERR_reason_error_string(ERR_peek_last_error()));
+		return -1;
+	}
+	LOGD("Create gNameURI");
+	gNameURI = GENERAL_NAME_new();
+	if (!gNameURI)
+	{
+		LOGE("Impossible to create a new gNameURI %s",ERR_reason_error_string(ERR_peek_last_error()));
 		return -1;
 	}
 
-	LOGD("set the value of gen with ia5 datas");
-	GENERAL_NAME_set0_value(gen, GEN_URI, asnstr);
-	//ia5 = NULL;
-
-	LOGD("Add gen into gens");
-	sk_GENERAL_NAME_push(gens,gen);
-
-
-
-
-
-
-
-
-
-
-
-
-
-#if 0
-	gens = sk_GENERAL_NAME_new_null();
-	if (gens == NULL)
+	LOGD("Create ia5");
+	ia5 = ASN1_IA5STRING_new();
+	if (!ia5)
 	{
-		LOGE("Error when creating gens");
+		LOGE("Impossible to create a new ia5 %s",ERR_reason_error_string(ERR_peek_last_error()));
 		return -1;
 	}
 
-	//TODO, extraire les URLs de values...
-	gen = GENERAL_NAME_new();
-	if (gen == NULL)
-	{
-		GENERAL_NAMES_free(gens);
-		LOGE("Error when creating gen");
-		return -1;
-	}
-	//ia5 = ASN1_IA5STRING_new();
-	//if (ia5 == NULL)
-	{
-		GENERAL_NAME_free(gen);
-		GENERAL_NAMES_free(gens);
-		LOGE("Error when creating ia5");
-		return -1;
-	}
-
-	LOGD("set ia5 with :%s",uri);
+	LOGD("ASN1_STRING_set");
 	if (!ASN1_STRING_set(ia5, uri, strlen(uri)))
 	{
-		LOGE("Error when setting ia5");
+		LOGE("Impossible to set ia5 %s",ERR_reason_error_string(ERR_peek_last_error()));
 		return -1;
 	}
 
-	LOGD("set the value of gen with ia5 datas");
-	GENERAL_NAME_set0_value(gen, GEN_URI, ia5);
-	//ia5 = NULL;
+	LOGD("GENERAL_NAME_set0_value");
+	GENERAL_NAME_set0_value(gNameURI, GEN_URI, ia5);
 
-	LOGD("Add gen into gens");
-	sk_GENERAL_NAME_push(gens,gen);
-	//gen = NULL;
-#endif
+	LOGD("push gNameURI to gNames");
+	sk_GENERAL_NAME_push(gNames, gNameURI);
 
-	LOGD("Add gens into the certificate");
-	if (!X509_add1_ext_i2d(subject, NID_crl_distribution_points, gens, 0, X509V3_ADD_REPLACE))
-	{
-		LOGE("Error when adding gens into cert");
+	LOGD("Init name in the distpoint");
+	dpName->name.fullname = gNames;
+	distPoint->distpoint = dpName;
+	distPoint->distpoint->type = 0;
+
+	LOGD("push distPoint to distPoints");
+	sk_DIST_POINT_push (distPoints, distPoint);
+
+	LOGD("Create extension");
+	extension = X509V3_EXT_i2d (NID_crl_distribution_points, 0, distPoints);
+	// Add the new extension
+	if (X509_add_ext(subject, extension, -1) != 1) {
+		X509_EXTENSION_free(extension);
+		LOGE("Impossible to add the new extension");
 		return -1;
 	}
 
-	LOGD("Free the objects");
-	if (gen) GENERAL_NAME_free(gen);
-	if (gens) GENERAL_NAMES_free(gens);
-	if (ia5) ASN1_IA5STRING_free(ia5);
+	X509_EXTENSION_free (extension);
 	LOGD("Quit scep_add_ext_crl_distribution_point");
-	return 0;
+	return 1;
 }
 
 /**
@@ -2432,7 +2418,7 @@ static int scep_degenerate(BIO *bp, ...)
  * @param subject
  * @return
  */
-static int scep_CertRep_set_all_extensions(X509_REQ *req, X509 *subject)
+static int scep_CertRep_set_all_extensions(X509_REQ *req, X509 *subject, int delCRLdistributionpoint)
 {
 	STACK_OF(X509_EXTENSION) *exts;
     X509_EXTENSION *ext;
@@ -2453,7 +2439,11 @@ static int scep_CertRep_set_all_extensions(X509_REQ *req, X509 *subject)
 //        if (OBJ_obj2nid(obj) != NID_subject_alt_name) {
 //            continue;
 //        }
-
+        if ((delCRLdistributionpoint == 1)
+        	&& (OBJ_obj2nid(obj) == NID_crl_distribution_points))
+        {
+        	continue;
+        }
         if (X509_add_ext(subject, ext, -1) != 1) {
             ret = -1;
             break;
@@ -2668,6 +2658,7 @@ struct scep_CertRep *scep_CertRep_new(
 
     STACK_OF(X509_EXTENSION) *exts;
     X509_EXTENSION *ext;
+    int ret = -1;
 
     LOGD("Enter scep_CertRep_new");
     if (!scep || !scep->signcert || !scep->signpkey || !req) {
@@ -2727,8 +2718,8 @@ struct scep_CertRep *scep_CertRep_new(
 //			}
 //		}
     	scep_add_ext(scep->signcert, subject, NID_authority_key_identifier, "keyid:always");
-    	scep_add_ext_crl_distribution_point(scep->signcert, subject, "URI.1=toto");
-    	if (scep_CertRep_set_all_extensions(req->csr, subject) != 0)
+    	ret = scep_add_ext_crl_distribution_point(scep->signcert, subject, scep->configure.crl_distribution_point);
+    	if (scep_CertRep_set_all_extensions(req->csr, subject, ret) != 0)
     	{
     		LOGE("Impossible to set CSR extension");
     	}
